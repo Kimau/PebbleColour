@@ -1,0 +1,25 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        ""
+    ],
+    "companyName": "evilkimau@gmail.com",
+    "longName": "ColourFarm",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "images/background.png",
+                "name": "PURPLE_GRAD",
+                "type": "png"
+            }
+        ]
+    },
+    "sdkVersion": "3",
+    "shortName": "ColourFarm",
+    "uuid": "178cf8a9-1573-40aa-b061-610ca13c1b5d",
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
+}

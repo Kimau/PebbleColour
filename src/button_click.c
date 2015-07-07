@@ -27,7 +27,8 @@ static uint8_t dither[] = {
 //------------------------------------------------------------------------------
 // typedef void (*AnimationUpdateImplementation)(struct Animation *animation,
 // const uint32_t time_normalized);
-void claire_anim_update(Animation *animation, const uint32_t time_normalized) {
+void claire_anim_update(struct Animation *animation,
+                        const uint32_t time_normalized) {
   layer_mark_dirty(s_grad_face);
 }
 

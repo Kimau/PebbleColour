@@ -9,6 +9,7 @@ static GRect s_grad_face_bounds;
 static uint8_t s_butState;
 
 static Animation *s_moveAnim = NULL;
+static AnimationImplementation s_moveAnimImpl;
 
 /*
 static uint8_t dither[] = {
@@ -64,15 +65,6 @@ static void face_grad_update_proc(Layer *layer, GContext *ctx) {
     sBlackness = sBlackness + (s_butState >> 2) - (s_butState & 0b001);
     if (sBlackness < 0) sBlackness = 0;
     if (sBlackness >= (box.size.h - 1)) sBlackness = box.size.h - 1;
-
-    if (s_moveAnim == NULL) {
-      s_moveAnim = animation_create();
-      animation_set_implementation(s_moveAnim, (AnimationImplementation){
-                                                   .update = claire_anim_update,
-                                               });
-      animation_set_delay(s_moveAnim, 33);
-      animation_set_duration(s_moveAnim, ANIMATION_DURATION_INFINITE);
-    }
 
     animation_schedule(s_moveAnim);
   } else {
@@ -151,6 +143,7 @@ static void window_unload(Window *window) {
 }
 
 static void init(void) {
+  // Create Window
   window = window_create();
   window_set_click_config_provider(window, click_config_provider);
   window_set_window_handlers(window,
@@ -159,6 +152,18 @@ static void init(void) {
                              });
 
   window_stack_push(window, false);
+
+  // Setup Animation
+  s_moveAnimImpl.setup = NULL;
+  s_moveAnimImpl.update = claire_anim_update;
+  s_moveAnimImpl.teardown = NULL;
+
+  s_moveAnim = animation_create();
+  animation_set_implementation(s_moveAnim, &s_moveAnimImpl);
+  animation_set_delay(s_moveAnim, 33);
+  animation_set_duration(s_moveAnim, ANIMATION_DURATION_INFINITE);
+
+  sBlackness = 50;
 }
 
 static void deinit(void) {

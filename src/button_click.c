@@ -11,7 +11,19 @@ static uint8_t s_butState;
 static Animation *s_moveAnim = NULL;
 static AnimationImplementation s_moveAnimImpl;
 
-static uint8_t dither[] = {
+#ifdef PBL_COLOR
+// ARGB
+static uint8_t hue_shift_left(uint8_t in) {
+  return (in & 0b11000000) | (((in << 1) | ((in & 0b00111111) >> 5)) & 0b00111111);
+}
+
+static uint8_t hue_shift_right(uint8_t in) {
+  return (in & 0b11000000) | (((in >> 1) | ((in & 0b00000001) << 5)) & 0b00111111);
+}
+
+static uint8_t s_basecol = 0b11000011;
+#else  
+  static uint8_t dither[] = {
   0b00000000, // 0
   0b00010001,
   0b00100100,
@@ -20,6 +32,7 @@ static uint8_t dither[] = {
   0b11101110,
   0b11111111 // 6
 };
+#endif
 
 //------------------------------------------------------------------------------
 // ANIMATION - Game LOOP
@@ -37,6 +50,33 @@ void claire_anim_update(Animation *animation, const AnimationProgress progress) 
 //------------------------------------------------------------------------------
 // Rendering
 //------------------------------------------------------------------------------
+#ifdef PBL_COLOR
+static void face_grad_update_proc(Layer *layer, GContext *ctx) {
+  GBitmap *rBuf = graphics_capture_frame_buffer_format(ctx, GBitmapFormat8Bit);
+
+  uint16_t stride = gbitmap_get_bytes_per_row(rBuf);
+  GRect box = gbitmap_get_bounds(rBuf);
+  uint8_t *dat = gbitmap_get_data(rBuf);
+  //
+
+  uint8_t col = s_basecol;
+  for (int c = box.size.h - 1; c >= 0; --c) {
+    int a = c-sBlackness;
+    if((a < 0) && ((a % 5)==0))
+      col = hue_shift_left(col);
+    
+    for (int x = stride - 1; x >= 0; --x) {
+      dat[c * stride + x] = col;
+    }
+  }
+
+  if (graphics_release_frame_buffer(ctx, rBuf)) {
+    // Todo
+  } else {
+    text_layer_set_text(text_layer, "FAIL");
+  }
+}
+#else
 static void face_grad_update_proc(Layer *layer, GContext *ctx) {
   GBitmap *rBuf = graphics_capture_frame_buffer_format(ctx, GBitmapFormat1Bit);
 
@@ -65,9 +105,8 @@ static void face_grad_update_proc(Layer *layer, GContext *ctx) {
   } else {
     text_layer_set_text(text_layer, "FAIL");
   }
-
 }
-
+#endif
 //------------------------------------------------------------------------------
 // INPUT HANDLING
 //------------------------------------------------------------------------------

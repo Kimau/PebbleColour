@@ -28,7 +28,7 @@ void claire_anim_update(Animation *animation, const AnimationProgress progress) 
   if(s_butState == 0)
     return; // No Change
   
-  sBlackness = sBlackness + (s_butState >> 2) - (s_butState & 0b001);
+  sBlackness = sBlackness - (s_butState >> 2) + (s_butState & 0b001);
   if (sBlackness < 0) sBlackness = 0;
   if (sBlackness >= (s_grad_face_bounds.size.h - 1)) sBlackness = s_grad_face_bounds.size.h - 1;
   layer_mark_dirty(s_grad_face);

@@ -11,7 +11,6 @@ static uint8_t s_butState;
 static Animation *s_moveAnim = NULL;
 static AnimationImplementation s_moveAnimImpl;
 
-/*
 static uint8_t dither[] = {
   0b00000000, // 0
   0b00010001,
@@ -20,15 +19,18 @@ static uint8_t dither[] = {
   0b11011011,
   0b11101110,
   0b11111111 // 6
-};*/
+};
 
 //------------------------------------------------------------------------------
-// ANIMATION
+// ANIMATION - Game LOOP
 //------------------------------------------------------------------------------
-// typedef void (*AnimationUpdateImplementation)(struct Animation *animation,
-// const uint32_t time_normalized);
-void claire_anim_update(struct Animation *animation,
-                        const uint32_t time_normalized) {
+void claire_anim_update(Animation *animation, const AnimationProgress progress) {
+  if(s_butState == 0)
+    return; // No Change
+  
+  sBlackness = sBlackness + (s_butState >> 2) - (s_butState & 0b001);
+  if (sBlackness < 0) sBlackness = 0;
+  if (sBlackness >= (s_grad_face_bounds.size.h - 1)) sBlackness = s_grad_face_bounds.size.h - 1;
   layer_mark_dirty(s_grad_face);
 }
 
@@ -43,13 +45,16 @@ static void face_grad_update_proc(Layer *layer, GContext *ctx) {
   uint8_t *dat = gbitmap_get_data(rBuf);
   //
 
-  uint8_t col = 0;  // dither[0];
+  uint8_t col = dither[0];
   for (int c = box.size.h - 1; c >= 0; --c) {
-    if (c > sBlackness)
-      col = 0b00000000;
+    int a = c-sBlackness;
+    if(a < 0)
+      col = dither[0];
+    else if (a > 6)
+      col = dither[6];
     else
-      col = 0b11111111;
-
+      col = dither[a];
+    
     for (int x = stride - 1; x >= 0; --x) {
       dat[c * stride + x] = col;
     }
@@ -61,15 +66,6 @@ static void face_grad_update_proc(Layer *layer, GContext *ctx) {
     text_layer_set_text(text_layer, "FAIL");
   }
 
-  if (s_butState != 0) {
-    sBlackness = sBlackness + (s_butState >> 2) - (s_butState & 0b001);
-    if (sBlackness < 0) sBlackness = 0;
-    if (sBlackness >= (box.size.h - 1)) sBlackness = box.size.h - 1;
-
-    animation_schedule(s_moveAnim);
-  } else {
-    animation_unschedule(s_moveAnim);
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -78,34 +74,30 @@ static void face_grad_update_proc(Layer *layer, GContext *ctx) {
 static void up_down_handler(ClickRecognizerRef recognizer, void *context) {
   text_layer_set_text(text_layer, "Up");
   s_butState |= 0b100;
-  layer_mark_dirty(s_grad_face);
 }
 
 static void up_up_handler(ClickRecognizerRef recognizer, void *context) {
   s_butState &= 0b011;
-  layer_mark_dirty(s_grad_face);
 }
 
 static void select_down_handler(ClickRecognizerRef recognizer, void *context) {
   text_layer_set_text(text_layer, "Select");
   s_butState |= 0b010;
-  layer_mark_dirty(s_grad_face);
 }
 
 static void select_up_handler(ClickRecognizerRef recognizer, void *context) {
   s_butState &= 0b101;
-  layer_mark_dirty(s_grad_face);
 }
 
 static void down_down_handler(ClickRecognizerRef recognizer, void *context) {
   text_layer_set_text(text_layer, "Down");
   s_butState |= 0b001;
-  layer_mark_dirty(s_grad_face);
+
 }
 
 static void down_up_handler(ClickRecognizerRef recognizer, void *context) {
   s_butState &= 0b110;
-  layer_mark_dirty(s_grad_face);
+
 }
 
 static void click_config_provider(void *context) {
@@ -121,6 +113,7 @@ static void click_config_provider(void *context) {
 // SETUP
 //------------------------------------------------------------------------------
 static void window_load(Window *window) {
+  // Setup Layers
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
@@ -135,9 +128,22 @@ static void window_load(Window *window) {
 
   layer_add_child(window_layer, s_grad_face);
   layer_add_child(s_grad_face, text_layer_get_layer(text_layer));
+  
+  // Setup Animation
+  s_moveAnimImpl.setup = NULL;
+  s_moveAnimImpl.update = claire_anim_update;
+  s_moveAnimImpl.teardown = NULL;
+
+  s_moveAnim = animation_create();
+  animation_set_implementation(s_moveAnim, &s_moveAnimImpl);
+  animation_set_duration(s_moveAnim, ANIMATION_DURATION_INFINITE);
+  
+  animation_schedule(s_moveAnim);
 }
 
 static void window_unload(Window *window) {
+  animation_unschedule_all();
+  animation_destroy(s_moveAnim);
   text_layer_destroy(text_layer);
   layer_destroy(s_grad_face);
 }
@@ -152,20 +158,9 @@ static void init(void) {
                              });
 
   window_stack_push(window, false);
-
-  // Setup Animation
-  s_moveAnimImpl.setup = NULL;
-  s_moveAnimImpl.update = claire_anim_update;
-  s_moveAnimImpl.teardown = NULL;
-
-  s_moveAnim = animation_create();
-  animation_set_implementation(s_moveAnim, &s_moveAnimImpl);
-  animation_set_delay(s_moveAnim, 33);
-  animation_set_duration(s_moveAnim, ANIMATION_DURATION_INFINITE);
 }
 
 static void deinit(void) {
-  animation_unschedule_all();
   window_destroy(window);
 }
 
